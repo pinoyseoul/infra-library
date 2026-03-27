@@ -23,13 +23,14 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **navidrome**: High-performance music streaming server for our audio library.
 *   **audiobookshelf**: Specialized server for managing and streaming audiobooks and podcasts.
 *   **photoview**: High-performance photo gallery designed for privacy and large backups.
-*   **kavita / bookshelf**: Advanced manga, comic, and ebook management systems.
+*   **kavita**: Advanced manga, comic, and ebook management systems.
 
 ### 🤖 Media Automation (The *arr Suite)
 *   **radarr**: Automated movie collection manager and downloader.
 *   **sonarr**: Automated TV series collection manager and downloader.
 *   **lidarr**: Automated music collection manager and downloader.
 *   **bazarr**: Automated subtitle management and synchronization.
+*   **readarr**: (bookshelf) Automated book management and downloader.
 *   **prowlarr**: Centralized indexer manager for all automation services.
 *   **qbittorrent**: High-speed, lightweight torrent client for data transmission.
 *   **ytdl-sub**: Automated YouTube content acquisition and organization.
@@ -60,4 +61,3 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 
 ---
 © 2026 **PinoySeoul Media Enterprise**.  
-*Structured. Automated. Transparent.*
