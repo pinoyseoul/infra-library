@@ -1,0 +1,90 @@
+name: Mirror Engine - Sync
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      repository-projects: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror Images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_ID: "PVT_kwDOA4eG_84BS-up"
+          SYNC_FIELD_ID: "PVTF_lADOA4eG_84BS-upzhAXSzs"
+        run: |
+          NOW=$(date -u +"%Y-%m-%d %H:%M UTC")
+          while IFS= read -r image || [ -n "$image" ]; do
+            [[ -z "$image" || "$image" =~ ^# ]] && continue
+            
+            echo "::group::Processing $image"
+            IMAGE_NAME=$(echo $image | awk -F"/" '{print $NF}')
+            BASE_NAME=$(echo $IMAGE_NAME | cut -d":" -f1)
+            TARGET_IMAGE="ghcr.io/pinoyseoul/$IMAGE_NAME"
+            
+            echo "Checking digests via Buildx..."
+            UPSTREAM_DIGEST=$(docker buildx imagetools inspect "$image" --format "{{json .Manifest}}" 2>/dev/null | jq -r ".digest" 2>/dev/null || echo "unknown")
+            LOCAL_DIGEST=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null | jq -r ".digest" 2>/dev/null || echo "none")
+            
+            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "" ]; then
+              echo "âœ… Match! Skipping $BASE_NAME"
+            else
+              echo "ðŸš€ Change detected. Mirroring..."
+              [ "$UPSTREAM_DIGEST" = "unknown" ] || docker pull -q "$image"
+              docker tag "$image" "$TARGET_IMAGE"
+              docker push "$TARGET_IMAGE"
+              
+              # Set public visibility via linking (Inherited from public repo)
+              echo "Linking to repository for visibility..."
+              gh api --method PUT "orgs/pinoyseoul/packages/container/$BASE_NAME/repository" -f repository_id=1193855777 --silent || true
+            fi
+            
+            # Update Dashboard
+            echo "Updating Dashboard..."
+            ITEM_ID=$(gh api graphql -f query='
+              query($project: ID!) {
+                node(id: $project) {
+                  ... on ProjectV2 {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        fieldValues(first: 10) {
+                          nodes {
+                            ... on ProjectV2ItemFieldTextValue { text }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }' -f project=$PROJECT_ID --jq ".data.node.items.nodes[] | select(.fieldValues.nodes[].text == \"$BASE_NAME\") | .id" | head -n 1)
+
+            if [ -n "$ITEM_ID" ]; then
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $value: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project, itemId: $item, fieldId: $field, value: { text: $value }
+                  }) { projectV2Item { id } }
+                }' -f project=$PROJECT_ID -f item=$ITEM_ID -f field=$SYNC_FIELD_ID -f value="$NOW"
+            fi
+
+            docker rmi "$image" "$TARGET_IMAGE" 2>/dev/null || true
+            echo "::endgroup::"
+          done < mirror-list.txt
