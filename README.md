@@ -2,8 +2,8 @@
 
 Welcome to the central container library for **PinoySeoul Media Enterprise**. This repository acts as the public anchor for our container collection, ensuring high availability, security, and standardized deployment across our global multi-node cluster.
 
-## ðŸš€ Infrastructure OS (Live Dashboard)
-Our entire tech stack is managed by an **Automated Infrastructure OS** that ensures our containers are always up-to-date and transparently monitored.
+## Infrastructure Catalouge
+Our entire tech stack is managed by that ensures our containers are always up-to-date and transparently monitored.
 
 | Resource | Status |
 | :--- | :--- |
