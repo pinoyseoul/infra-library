@@ -56,7 +56,7 @@ jobs:
               }
             }' -f project=$PROJECT_ID --jq '.data.node.items.nodes')
 
-          # 2. Mirror Loop
+          # 2. Main Mirror Loop
           while IFS= read -r image || [ -n "$image" ]; do
             [[ -z "$image" || "$image" =~ ^# ]] && continue
             
@@ -76,6 +76,8 @@ jobs:
             fi
 
             UPSTREAM_DIGEST=$(echo $UPSTREAM_JSON | jq -r '.manifest.digest // .[0].manifest.digest')
+            
+            # Smart size calculation (Summing layer sizes if available)
             SIZE_BYTES=$(echo $UPSTREAM_JSON | jq -r '[.. | .size? | numbers] | add')
             IMAGE_SIZE=$(awk "BEGIN {print int($SIZE_BYTES/1048576)}")" MB"
             
@@ -89,9 +91,11 @@ jobs:
               docker pull -q "$image"
               docker tag "$image" "$TARGET_IMAGE"
               docker push "$TARGET_IMAGE"
+              # Ensure Public Visibility via Link (Public Repo)
               gh api --method PUT "orgs/pinoyseoul/packages/container/$BASE_NAME/repository" -F repository_id=1193855777 --silent || true
             fi
             
+            # Dashboard Discovery & Sync
             ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text == \"$BASE_NAME\") | .id // empty" | head -n 1)
 
             if [ -z "$ITEM_ID" ]; then
@@ -104,6 +108,7 @@ jobs:
                 }' -f project=$PROJECT_ID -f title="$BASE_NAME" --jq '.data.addProjectV2DraftIssue.projectItem.id')
             fi
 
+            # Update Dashboard values
             SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
             gh api graphql -f query='
               mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!,$f3:ID!,$v3:String!) {
@@ -123,7 +128,7 @@ jobs:
             ITEM_NAME=$(echo "$item" | jq -r '.fieldValues.nodes[].text' | grep -v '^$' | head -n 1)
             ITEM_ID=$(echo "$item" | jq -r '.id')
             if ! echo "$MIRROR_NAMES" | grep -qx "$ITEM_NAME"; then
-               if [ "$ITEM_NAME" != "Core Mirror Engine" ]; then
+               if [ "$ITEM_NAME" != "Core Mirror Engine" ] && [ -n "$ITEM_NAME" ]; then
                  echo "🗑️ Archiving orphaned item: $ITEM_NAME"
                  gh api graphql -f query='mutation($p:ID!,$i:ID!){archiveProjectV2Item(input:{projectId:$p,itemId:$i}){item{id}}}' -f p=$PROJECT_ID -f i=$ITEM_ID --silent || true
                fi
