@@ -51,7 +51,8 @@ jobs:
             
             if [ "$UPSTREAM_DATA" = "error" ]; then
               echo "::error::Failed to inspect $image"
-              curl -X POST -H "Content-Type: application/json" -d "{\"text\":\"ðŸš¨ *Mirror Failed*: Could not inspect upstream image $image\"}" $CHAT_WEBHOOK
+              # Simplified non-corrupt notification
+              curl -X POST -H "Content-Type: application/json" -d "{\"text\":\"Mirror Failed: Could not inspect upstream image $image\"}" $CHAT_WEBHOOK
               echo "::endgroup::"
               continue
             fi
@@ -60,21 +61,24 @@ jobs:
             LOCAL_DIGEST=$(echo $LOCAL_DATA | jq -r '.digest // empty')
             
             # MIRROR LOGIC
-            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ]; then
-              echo "âœ… Match: $BASE_NAME"
+            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$LOCAL_DIGEST" != "" ]; then
+              echo "Up-to-date: $BASE_NAME"
+              # Still need to get size if it's missing on the board
+              IMAGE_SIZE="Unknown"
             else
-              echo "ðŸš€ Syncing $BASE_NAME..."
+              echo "Syncing $BASE_NAME..."
               docker pull -q "$image"
               docker tag "$image" "$TARGET_IMAGE"
               docker push "$TARGET_IMAGE"
               
+              # Get Size after pull
+              IMAGE_SIZE=$(docker image inspect "$image" --format '{{.Size}}' | awk '{print int($1/1048576) " MB"}')
+              
               # Force Public Visibility via Link
-              echo "Enforcing Public Visibility..."
               gh api --method PUT "orgs/pinoyseoul/packages/container/$BASE_NAME/repository" -F repository_id=1193855777 --silent || true
             fi
             
-            # DASHBOARD OS (Auto-Discovery & Update)
-            echo "Syncing Dashboard..."
+            # DASHBOARD SYNC
             ITEM_DATA=$(gh api graphql -f query='
               query($project: ID!) {
                 node(id: $project) {
@@ -94,7 +98,7 @@ jobs:
             ITEM_ID=$(echo $ITEM_DATA | jq -r '.id // empty')
 
             if [ -z "$ITEM_ID" ]; then
-              echo "âœ¨ Auto-Discover: Adding $BASE_NAME to board..."
+              echo "Adding $BASE_NAME to board..."
               ITEM_ID=$(gh api graphql -f query='
                 mutation($project: ID!, $title: String!) {
                   addProjectV2DraftIssue(input: {projectId: $project, title: $title}) {
@@ -103,16 +107,21 @@ jobs:
                 }' -f project=$PROJECT_ID -f title="$BASE_NAME" --jq '.data.addProjectV2DraftIssue.projectItem.id')
             fi
 
-            # Update Fields
-            echo "Updating Dashboard values..."
-            # Update Last Sync
-            gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{text:$v}}){projectV2Item{id}}}' \
-              -f p=$PROJECT_ID -f i=$ITEM_ID -f f=$SYNC_FIELD -f v="$NOW"
-            
-            # Update SHA
+            # Update Dashboard values
             SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
-            gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{text:$v}}){projectV2Item{id}}}' \
-              -f p=$PROJECT_ID -f i=$ITEM_ID -f f=$SHA_FIELD -f v="$SHORT_SHA"
+            
+            # Batch update field values
+            gh api graphql -f query='
+              mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!) {
+                m1: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f1,value:{text:$v1}}){projectV2Item{id}}
+                m2: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f2,value:{text:$v2}}){projectV2Item{id}}
+              }' -f p=$PROJECT_ID -f i=$ITEM_ID -f f1=$SYNC_FIELD -f v1="$NOW" -f f2=$SHA_FIELD -f v2="$SHORT_SHA"
+
+            # Update Size if we have it
+            if [ -n "$IMAGE_SIZE" ] && [ "$IMAGE_SIZE" != "Unknown" ]; then
+               gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{text:$v}}){projectV2Item{id}}}' \
+                 -f p=$PROJECT_ID -f i=$ITEM_ID -f f=$SIZE_FIELD -f v="$IMAGE_SIZE"
+            fi
 
             docker rmi "$image" "$TARGET_IMAGE" 2>/dev/null || true
             echo "::endgroup::"
