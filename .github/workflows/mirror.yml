@@ -1,4 +1,4 @@
-name: Mirror Engine - OS Sync
+name: Mirror Engine - Catalogue Sync
 
 on:
   schedule:
@@ -27,7 +27,7 @@ jobs:
           username: subtleazn
           password: ${{ secrets.ORG_MIRROR_TOKEN }}
 
-      - name: Mirror & Dashboard OS
+      - name: Mirror & Dashboard Catalogue
         env:
           GH_TOKEN: ${{ secrets.ORG_MIRROR_TOKEN }}
           PROJECT_ID: "PVT_kwDOA4eG_84BS-up"
