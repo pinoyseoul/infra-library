@@ -1,38 +1,31 @@
-# PinoySeoul Infrastructure Library
+# ðŸ›ï¸ PinoySeoul Infrastructure Library
 
 Welcome to the central container library for **PinoySeoul Media Enterprise**. 
 This repository acts as the public anchor for our container collection, ensuring high availability and standardized deployment across our global infrastructure.
 
-## Mirror Engine Status
-Our infrastructure is powered by a **Smart Mirror Engine** that synchronizes core media and technical containers from the public internet into this organization every day.
+## ðŸš€ Infrastructure OS (Live Dashboard)
+Our stack is managed by an **Automated Infrastructure OS** that auto-syncs code to packages and reports health in real-time.
 
-- **Sync Schedule**: Daily at 00:00 UTC.
-- **Smart Logic**: We only pull and push updates when a genuine upstream change is detected, ensuring stable versions for our servers.
-- **Visual Dashboard**: [Track our live infrastructure health here](https://github.com/orgs/pinoyseoul/projects/3).
+| Resource | Status |
+| :--- | :--- |
+| **Mirror Engine** | [![Mirror Sync](https://github.com/pinoyseoul/infra-library/actions/workflows/mirror.yml/badge.svg)](https://github.com/pinoyseoul/infra-library/actions/workflows/mirror.yml) |
+| **Live Dashboard** | [ðŸ“Š View Public Project Board](https://github.com/orgs/pinoyseoul/projects/3) |
+| **Registry** | [ðŸ“¦ GHCR Packages](https://github.com/orgs/pinoyseoul/packages) |
 
-## Container Catalog
-The following containers are currently mirrored and managed in this library:
+## ðŸ“¦ Container Catalog
+The following containers are auto-discovered and mirrored daily:
 
 ### Core Media Stack
-*   **azuracast**: Radio broadcasting and station management.
-*   **jellyfin**: Media streaming server.
-*   **radarr / sonarr / lidarr / bazarr**: Media management and automated acquisition.
-*   **prowlarr / qbittorrent**: Indexing and transmission.
-*   **jellyseerr**: Media discovery and request management.
+*   **azuracast**: Radio broadcasting.
+*   **jellyfin**: Media streaming.
+*   **radarr / sonarr / lidarr / bazarr**: Media automation.
 
 ### Technical & Admin Stack
-*   **postgres / mariadb / redis**: High-performance database clusters.
-*   **kimai2**: Time tracking and attendance.
-*   **planka**: Visual project management and roadmap tracking.
-*   **vaultwarden**: Secure secret and password management.
-*   **postiz-app**: Social media scheduling and outreach.
-*   **dbgate**: Multi-database management tool.
+*   **postgres / mariadb / redis**: Database clusters.
+*   **kimai2 / planka / postiz-app**: Admin tools.
 
 ### Utility & Infrastructure
-*   **cloudflared**: Secure tunneling and connectivity.
-*   **watchtower**: Automated container update manager.
-*   **glances**: Real-time system monitoring.
-*   **rclone**: Multi-cloud backup and synchronization utility.
+*   **cloudflared / watchtower / glances**: Core ops.
 
 ---
-© 2026 PinoySeoul Media Enterprise. Built with love for the Korean and Filipino communities.
+Â© 2026 PinoySeoul Media Enterprise. **Structured. Automated. Transparent.**
