@@ -1,22 +1,22 @@
-# PinoySeoul Infrastructure Library
+# ðŸ›ï¸ PinoySeoul Infrastructure OS
 
-Welcome to the central container library for **PinoySeoul Media Enterprise**. This repository acts as the public anchor for our container collection, ensuring high availability, security, and standardized deployment across our global multi-node cluster.
+Welcome to the central command for **PinoySeoul Media Enterprise**. This repository acts as the public anchor for our container collection, ensuring high availability, security, and standardized deployment across our global multi-node cluster.
 
-## Infrastructure Catalouge
-Our entire tech stack is managed by that ensures our containers are always up-to-date and transparently monitored.
+## ðŸš€ Infrastructure OS (Live Dashboard)
+Our entire tech stack is managed by an **Automated Infrastructure OS** that ensures our containers are always up-to-date and transparently monitored.
 
 | Resource | Status |
 | :--- | :--- |
-| **Mirror Engine** | [![Mirror Sync](https://github.com/pinoyseoul/infra-library/actions/workflows/mirror.yml/badge.svg)](https://github.com/pinoyseoul/infra-library/actions/workflows/mirror.yml) |
-| **Live Dashboard** | [View Public Project Board](https://github.com/orgs/pinoyseoul/projects/3) |
-| **Public Registry** | [Browse GHCR Packages](https://github.com/orgs/pinoyseoul/packages) |
+| **Mirror Engine** | [![Mirror Sync](https://github.com/pinoyseoul/infrastructure/actions/workflows/mirror.yml/badge.svg)](https://github.com/pinoyseoul/infrastructure/actions/workflows/mirror.yml) |
+| **Live Dashboard** | [ðŸ“Š View Public Project Board](https://github.com/orgs/pinoyseoul/projects/3) |
+| **Public Registry** | [ðŸ“¦ Browse GHCR Packages](https://github.com/orgs/pinoyseoul/packages) |
 
 ---
 
-## Container Catalog
+## ðŸ“¦ Container Catalog
 The following applications are auto-discovered, mirrored, and tracked in this library.
 
-### Media Production & Streaming
+### ðŸŽ¬ Media Production & Streaming
 *   **azuracast**: The heartbeat of our radio operations. A complete web radio management suite.
 *   **jellyfin**: Our primary media streaming server for movies, shows, and live TV.
 *   **jellyseerr**: A request management and discovery tool for our media ecosystem.
@@ -25,7 +25,7 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **photoview**: High-performance photo gallery designed for privacy and large backups.
 *   **kavita / bookshelf**: Advanced manga, comic, and ebook management systems.
 
-### Media Automation (The *arr Suite)
+### ðŸ¤– Media Automation (The *arr Suite)
 *   **radarr**: Automated movie collection manager and downloader.
 *   **sonarr**: Automated TV series collection manager and downloader.
 *   **lidarr**: Automated music collection manager and downloader.
@@ -34,7 +34,7 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **qbittorrent**: High-speed, lightweight torrent client for data transmission.
 *   **ytdl-sub**: Automated YouTube content acquisition and organization.
 
-### Business & Admin Operations
+### ðŸ’¼ Business & Admin Operations
 *   **kimai2**: Our core time tracking and professional attendance platform.
 *   **planka**: Visual project management and workload tracking board.
 *   **postiz-app**: All-in-one social media scheduling and outreach platform.
@@ -42,7 +42,7 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **invoiceshelf**: Self-hosted business invoicing and financial tracking.
 *   **vaultwarden**: Secure, lightweight password and secret management (Bitwarden-compatible).
 
-### Technical Infrastructure & Databases
+### ðŸ› ï¸ Technical Infrastructure & Databases
 *   **postgres**: Advanced relational database powering our core system services.
 *   **mariadb**: Robust SQL database used for high-availability applications.
 *   **redis**: High-speed in-memory data store for caching and real-time queues.
@@ -50,7 +50,7 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **temporalio (Server & UI)**: Modern workflow orchestration for reliable task execution.
 *   **dbgate**: Cross-platform database manager for SQL and NoSQL clusters.
 
-### Network & System Utilities
+### ðŸ›¡ï¸ Network & System Utilities
 *   **cloudflared**: Secure Zero Trust tunnels for private access without open ports.
 *   **watchtower**: Automated manager that keeps our containers updated with the latest security patches.
 *   **glances**: Real-time system monitoring and hardware metrics dashboard.
@@ -59,4 +59,5 @@ The following applications are auto-discovered, mirrored, and tracked in this li
 *   **home-assistant**: Centralized automation platform for homelab management.
 
 ---
-© 2026 **PinoySeoul Media Enterprise**.
+Â© 2026 **PinoySeoul Media Enterprise**.  
+*Structured. Automated. Transparent.*
