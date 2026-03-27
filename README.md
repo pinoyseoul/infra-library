@@ -1,16 +1,16 @@
-# ðŸ›ï¸ PinoySeoul Infrastructure Library
+# PinoySeoul Infrastructure Library
 
 Welcome to the central container library for **PinoySeoul Media Enterprise**. 
 This repository acts as the public anchor for our container collection, ensuring high availability and standardized deployment across our global infrastructure.
 
-## ðŸš€ Mirror Engine Status
+## Mirror Engine Status
 Our infrastructure is powered by a **Smart Mirror Engine** that synchronizes core media and technical containers from the public internet into this organization every day.
 
 - **Sync Schedule**: Daily at 00:00 UTC.
 - **Smart Logic**: We only pull and push updates when a genuine upstream change is detected, ensuring stable versions for our servers.
 - **Visual Dashboard**: [Track our live infrastructure health here](https://github.com/orgs/pinoyseoul/projects/3).
 
-## ðŸ“¦ Container Catalog
+## Container Catalog
 The following containers are currently mirrored and managed in this library:
 
 ### Core Media Stack
@@ -35,4 +35,4 @@ The following containers are currently mirrored and managed in this library:
 *   **rclone**: Multi-cloud backup and synchronization utility.
 
 ---
-Â© 2026 PinoySeoul Media Enterprise. Built with â¤ï¸ for the Korean and Filipino communities.
+© 2026 PinoySeoul Media Enterprise. Built with love for the Korean and Filipino communities.
