@@ -77,9 +77,9 @@ jobs:
 
             UPSTREAM_DIGEST=$(echo $UPSTREAM_JSON | jq -r '.manifest.digest // .[0].manifest.digest')
             
-            # Smart size calculation (Summing layer sizes if available)
-            SIZE_BYTES=$(echo $UPSTREAM_JSON | jq -r '[.. | .size? | numbers] | add')
-            IMAGE_SIZE=$(awk "BEGIN {print int($SIZE_BYTES/1048576)}")" MB"
+            # Robust size calculation (Handles both single and multi-arch)
+            IMAGE_SIZE=$(docker buildx imagetools inspect "$image" --format "{{range .Manifest.Layers}}{{.Size}}{{println}}{{end}}" 2>/dev/null | awk "{s+=\$1} END {print int(s/1048576) \" MB\"}")
+            [ "$IMAGE_SIZE" = "0 MB" ] && IMAGE_SIZE="N/A"
             
             LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
             LOCAL_DIGEST=$(echo $LOCAL_DATA | jq -r '.digest // empty')
