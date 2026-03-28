@@ -161,7 +161,16 @@ jobs:
 
           # Cleanup
           echo "Performing board cleanup..."
-          MIRROR_NAMES=$(grep -v "^#" mirror-list.txt | cut -d'|' -f2 | xargs)
+          MIRROR_NAMES=$(while read -r line || [ -n "$line" ]; do
+            [[ -z "$line" || "$line" =~ ^# ]] && continue
+            source=$(echo "$line" | cut -d'|' -f1 | xargs)
+            target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
+            if [ -z "$target_name" ]; then
+                target_name=$(echo $source | awk -F"/" "{print \$NF}" | cut -d":" -f1)
+            fi
+            echo "$target_name"
+          done < mirror-list.txt)
+          
           echo "$BOARD_ITEMS" | jq -c ".[]" | while read item; do
             ITEM_NAME=$(echo "$item" | jq -r ".fieldValues.nodes[].text" | grep -v "^$" | head -n 1)
             ITEM_ID=$(echo "$item" | jq -r ".id")
