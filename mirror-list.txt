@@ -10,20 +10,20 @@ dbgate/dbgate:latest
 rclone/rclone:latest
 nicolargo/glances:latest-full
 python:3.11-slim
-ghcr.io/gitroomhq/postiz-app:latest | postiz-app
+ghcr.io/gitroomhq/postiz-app:latest
 postgres:15-alpine
 redis:alpine
-temporalio/auto-setup:1.26.2 | auto-setup
-temporalio/ui:2.30.0 | ui
-elasticsearch:7.17.27 | elasticsearch
+temporalio/auto-setup:1.26.2
+temporalio/ui:2.30.0
+elasticsearch:7.17.27
 postgres:16
-invoiceshelf/invoiceshelf:nightly | invoiceshelf
-kimai/kimai2:apache | kimai2
+invoiceshelf/invoiceshelf:nightly
+kimai/kimai2:apache
 mariadb:10.8
 ghcr.io/plankanban/planka:latest
 postgres:15
 docuseal/docuseal:latest
-vaultwarden/server:latest | vaultwarden
+vaultwarden/server:latest
 alpine:latest
 cloudflare/cloudflared:latest
 containrrr/watchtower:latest
@@ -42,4 +42,4 @@ portainer/portainer-ee:latest
 portainer/agent:latest
 portainer/edge-agent:latest
 fe80grau/ytdlp2strm:latest
-qmcgaw/gluetun:latest | gluetun
+qmcgaw/gluetun:latest

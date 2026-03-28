@@ -56,13 +56,30 @@ jobs:
             }' -f project=$PROJECT_ID --jq '.data.node.items.nodes')
 
           # 2. Main Mirror Loop
-          while IFS= read -r image || [ -n "$image" ]; do
-            [[ -z "$image" || "$image" =~ ^# ]] && continue
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ -z "$line" || "$line" =~ ^# ]] && continue
             
-            echo "::group::Processing $image"
-            IMAGE_NAME=$(echo $image | awk -F"/" '{print $NF}')
-            BASE_NAME=$(echo $IMAGE_NAME | cut -d":" -f1)
-            TARGET_IMAGE="ghcr.io/pinoyseoul/$IMAGE_NAME"
+            image=$(echo "$line" | xargs)
+            # Full Path Mirroring for Direct Translation
+            # lscr.io/linuxserver/radarr -> ghcr.io/pinoyseoul/linuxserver/radarr
+            
+            # Remove registry prefix from upstream if present for the target path
+            # e.g. lscr.io/linuxserver/radarr -> linuxserver/radarr
+            # e.g. postgres:15 -> library/postgres:15 (standardize)
+            
+            CLEAN_PATH=$(echo $image | sed -E 's|^[^/.]+[:.][^/]+/||')
+            # If no registry was present, it might be an official image or a user image
+            if [[ "$image" != *"/"* ]]; then
+               CLEAN_PATH="library/$image"
+            elif [[ "$image" != *"."* && "$image" == *"/"* && $(echo $image | awk -F'/' '{print NF}') -eq 2 ]]; then
+               # Already a user/repo format like vaultwarden/server
+               CLEAN_PATH="$image"
+            fi
+            
+            TARGET_IMAGE="ghcr.io/pinoyseoul/$CLEAN_PATH"
+            BASE_NAME=$(echo $CLEAN_PATH | cut -d":" -f1)
+            
+            echo "::group::Processing $BASE_NAME ($image)"
             
             echo "Inspecting metadata..."
             UPSTREAM_JSON=$(docker buildx imagetools inspect "$image" --format "{{json .}}" 2>/dev/null || echo "error")
@@ -81,8 +98,8 @@ jobs:
 
             UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -r '.manifest.digest // .[0].manifest.digest // "unknown"')
             
-            # Safe Size Calculation
-            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -r '[.. | .size? | select(type == "number")] | add // 0' 2>/dev/null || echo "0")
+            # Safe Size Calculation (using jq -s to handle multi-object output from buildx)
+            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' 2>/dev/null || echo "0")
             
             IMAGE_SIZE="N/A"
             if [ "$SIZE_BYTES" -gt 0 ]; then
