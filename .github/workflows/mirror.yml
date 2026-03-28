@@ -3,6 +3,9 @@ name: Mirror Engine - Catalogue Sync
 on:
   schedule:
     - cron: "0 0 * * *"
+  push:
+    paths:
+      - 'mirror-list.txt'
   workflow_dispatch:
 
 jobs:
