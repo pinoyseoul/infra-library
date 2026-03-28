@@ -38,6 +38,7 @@ ghcr.io/home-assistant/home-assistant:stable
 lscr.io/linuxserver/syncthing:latest
 ghcr.io/jmbannon/ytdl-sub:latest
 ghcr.io/azuracast/azuracast:latest
+qmcgaw/gluetun:latest
 portainer/portainer-ee:latest
 portainer/agent:latest
 portainer/edge-agent:latest
