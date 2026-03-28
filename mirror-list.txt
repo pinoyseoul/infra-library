@@ -42,3 +42,4 @@ portainer/portainer-ee:latest
 portainer/agent:latest
 portainer/edge-agent:latest
 fe80grau/ytdlp2strm:latest
+qmcgaw/gluetun:latest
