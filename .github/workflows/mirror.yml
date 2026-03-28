@@ -38,7 +38,7 @@ jobs:
         run: |
           NOW=$(date -u +"%Y-%m-%d %H:%M UTC")
           
-          # Fetch board items including archived status
+          # Fetch board items
           echo "Fetching board items..."
           BOARD_ITEMS=$(gh api graphql -f query='
             query($project: ID!) {
@@ -60,65 +60,48 @@ jobs:
           while IFS= read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             
-            # Parse source | target mapping
+            # 1. Parse source | target mapping
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
             
+            # 2. Extract Tag
+            tag=$(echo $source | awk -F":" '{print $NF}')
+            [[ "$tag" == "$source" ]] && tag="latest"
+
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" '{print $NF}' | cut -d':' -f1)
             fi
 
-            echo "::group::Processing $target_name ($source)"
-            
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            [[ "$tag" == "$source" ]] && tag="latest"
+            # 3. Final Identity (Name:Tag) for Dashboard
+            FULL_ID="$target_name:$tag"
             TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
+
+            echo "::group::Processing $FULL_ID ($source)"
             
-            # FALLBACK VALUES
+            # Metadata check
+            UPSTREAM_JSON=$(docker buildx imagetools inspect "$source" --format "{{json .}}" 2>/dev/null || echo "error")
             UPSTREAM_DIGEST="unknown"
             IMAGE_SIZE="N/A"
 
-            echo "Inspecting $source metadata..."
-            # Use file-based capture to prevent shell mangling
-            if docker buildx imagetools inspect "$source" --format "{{json .}}" > metadata.raw 2>/dev/null; then
-                # Safe JSON parsing using Slurp mode
-                if jq -s . metadata.raw >/dev/null 2>&1; then
-                    UPSTREAM_DIGEST=$(jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' metadata.raw 2>/dev/null || echo "unknown")
-                    # Recursive sum of all .size fields for total multi-arch size
-                    SIZE_BYTES=$(jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' metadata.raw 2>/dev/null || echo "0")
-                    if [ "$SIZE_BYTES" != "0" ] && [ "$SIZE_BYTES" != "" ]; then
-                        IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
-                    fi
-                else
-                    echo "⚠️ Invalid JSON metadata for $source. Metadata check skipped."
+            if [ "$UPSTREAM_JSON" != "error" ]; then
+                UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
+                SIZE_BYTES=$(jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' <(echo "$UPSTREAM_JSON") 2>/dev/null || echo "0")
+                if [ "$SIZE_BYTES" != "0" ] && [ "$SIZE_BYTES" != "" ]; then
+                    IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
                 fi
-            else
-                echo "⚠️ Buildx metadata inspection failed for $source."
             fi
-            rm -f metadata.raw
 
-            LOCAL_DIGEST="none"
-            if docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" > local.raw 2>/dev/null; then
-                 LOCAL_DIGEST=$(jq -r '.digest // "none"' local.raw 2>/dev/null || echo "none")
-            fi
-            rm -f local.raw
+            LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
+            LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // "none"' 2>/dev/null || echo "none")
             
             if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
-              echo "✅ Match: $target_name"
+              echo "✅ Match: $FULL_ID"
             else
-              echo "🚀 Syncing $target_name..."
+              echo "🚀 Syncing $FULL_ID..."
               if docker pull -q "$source"; then
                 docker tag "$source" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
-                
-                # ALSO push :latest for convenience if tag is not latest
-                if [ "$tag" != "latest" ]; then
-                   echo "🏷️ Pushing latest tag for $target_name..."
-                   docker tag "$source" "ghcr.io/pinoyseoul/$target_name:latest"
-                   docker push "ghcr.io/pinoyseoul/$target_name:latest"
-                fi
               else
-
                 echo "::error::Failed to pull $source"
                 echo "::endgroup::"
                 continue
@@ -126,34 +109,31 @@ jobs:
             fi
             
             # Dashboard Sync
-            ITEM_DATA=$(echo "$BOARD_ITEMS" | jq -c ".[] | select(.fieldValues.nodes[].text? == \"$target_name\")" | head -n 1)
+            ITEM_DATA=$(echo "$BOARD_ITEMS" | jq -c ".[] | select(.fieldValues.nodes[].text? == \"$FULL_ID\")" | head -n 1)
             ITEM_ID=$(echo "$ITEM_DATA" | jq -r ".id // empty")
             IS_ARCHIVED=$(echo "$ITEM_DATA" | jq -r ".isArchived // false")
 
             if [ -n "$ITEM_ID" ] && [ "$IS_ARCHIVED" = "true" ]; then
-                echo "🔓 Unarchiving $target_name..."
                 gh api graphql -f query='mutation($p:ID!,$i:ID!){unarchiveProjectV2Item(input:{projectId:$p,itemId:$i}){item{id}}}' -f p=$PROJECT_ID -f i=$ITEM_ID --silent || true
             fi
 
             if [ -z "$ITEM_ID" ]; then
-              echo "✨ Auto-Discover: Adding $target_name to board..."
               ITEM_ID=$(gh api graphql -f query='
                 mutation($project: ID!, $title: String!) {
                   addProjectV2DraftIssue(input: {projectId: $project, title: $title}) {
                     projectItem { id }
                   }
-                }' -f project=$PROJECT_ID -f title="$target_name" --jq '.data.addProjectV2DraftIssue.projectItem.id' 2>/dev/null || echo "")
+                }' -f project=$PROJECT_ID -f title="$FULL_ID" --jq '.data.addProjectV2DraftIssue.projectItem.id' 2>/dev/null || echo "")
             fi
 
             if [ -n "$ITEM_ID" ]; then
                 SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
-                echo "Updating Dashboard values..."
                 gh api graphql -f query='
                   mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!,$f3:ID!,$v3:String!) {
                     m1: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f1,value:{text:$v1}}){projectV2Item{id}}
                     m2: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f2,value:{text:$v2}}){projectV2Item{id}}
                     m3: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f3,value:{text:$v3}}){projectV2Item{id}}
-                  }' -f p=$PROJECT_ID -f i=$ITEM_ID -f f1=$SYNC_FIELD -f v1="$NOW" -f f2=$SHA_FIELD -f v2="$SHORT_SHA" -f f3=$SIZE_FIELD -f v3="$IMAGE_SIZE" --silent || echo "::warning::Failed to update dashboard fields for $target_name"
+                  }' -f p=$PROJECT_ID -f i=$ITEM_ID -f f1=$SYNC_FIELD -f v1="$NOW" -f f2=$SHA_FIELD -f v2="$SHORT_SHA" -f f3=$SIZE_FIELD -f v3="$IMAGE_SIZE" --silent || true
             fi
 
             docker rmi "$source" "$TARGET_IMAGE" 2>/dev/null || true
@@ -167,10 +147,12 @@ jobs:
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
+            tag=$(echo $source | awk -F":" '{print $NF}')
+            [[ "$tag" == "$source" ]] && tag="latest"
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" "{print \$NF}" | cut -d":" -f1)
             fi
-            echo "$target_name"
+            echo "$target_name:$tag"
           done < mirror-list.txt)
           
           echo "$BOARD_ITEMS" | jq -c ".[]" | while read item; do
