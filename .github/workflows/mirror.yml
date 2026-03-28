@@ -38,7 +38,6 @@ jobs:
         run: |
           NOW=$(date -u +"%Y-%m-%d %H:%M UTC")
           
-          # 1. Fetch current board items
           echo "Fetching board items..."
           BOARD_ITEMS=$(gh api graphql -f query='
             query($project: ID!) {
@@ -56,7 +55,6 @@ jobs:
               }
             }' -f project=$PROJECT_ID --jq '.data.node.items.nodes')
 
-          # 2. Main Mirror Loop
           while IFS= read -r image || [ -n "$image" ]; do
             [[ -z "$image" || "$image" =~ ^# ]] && continue
             
@@ -72,20 +70,18 @@ jobs:
             UPSTREAM_DIGEST="unknown"
 
             if [ "$UPSTREAM_JSON" != "error" ]; then
-              # Robust Digest & Size Calculation (Handles multi-arch manifests)
-              UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
-              
-              # Extract size safely
-              if echo "$UPSTREAM_JSON" | jq -s . >/dev/null 2>&1; then
-                SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0')
-                [ "$SIZE_BYTES" -gt 0 ] && IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
-              else
-                echo "⚠️ Invalid JSON metadata for $image. Size skipped."
-              fi
-            else
-              echo "⚠️ Could not inspect metadata for $image. Continuing with pull-only mode."
+                # Fetch Digest safely
+                UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
+                
+                # Safe Size Calculation via temporary file to handle multiple objects
+                echo "$UPSTREAM_JSON" > metadata.json
+                SIZE_BYTES=$(jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' metadata.json 2>/dev/null || echo "0")
+                rm -f metadata.json
+                
+                if [ "$SIZE_BYTES" != "0" ] && [ "$SIZE_BYTES" != "" ]; then
+                    IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+                fi
             fi
-
 
             LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
             LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // empty')
@@ -97,11 +93,14 @@ jobs:
               if docker pull -q "$image"; then
                 docker tag "$image" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
+              else
+                echo "::error::Failed to pull $image"
+                continue
               fi
             fi
             
             # Dashboard Sync
-            ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text == \"$BASE_NAME\") | .id // empty" | head -n 1)
+            ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text? == \"$BASE_NAME\") | .id // empty" | head -n 1)
 
             if [ -z "$ITEM_ID" ]; then
               echo "✨ Auto-Discover: Adding $BASE_NAME to board..."
