@@ -100,13 +100,9 @@ jobs:
               if docker pull -q "$upstream"; then
                 docker tag "$upstream" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
-                # Linking to ensure public status (using full path as package name)
-                # gh api handles the slash encoding automatically? No, we might need to encode.
-                # However, GHCR uses the same path.
-                PACKAGE_NAME=$(echo $CLEAN_PATH | cut -d':' -f1)
-                gh api --method PUT "orgs/pinoyseoul/packages/container/${PACKAGE_NAME//\//%2F}/repository" -F repository_id=1193855777 --silent || true
               else
                 echo "::error::Failed to pull $upstream"
+                continue
               fi
             fi
             
