@@ -68,7 +68,13 @@ jobs:
             UPSTREAM_JSON=$(docker buildx imagetools inspect "$image" --format "{{json .}}" 2>/dev/null || echo "error")
             
             if [ "$UPSTREAM_JSON" = "error" ]; then
-              echo "::error::Failed to inspect $image"
+              echo "::error::Failed to inspect $image. Registry might be unreachable or image name is invalid."
+              # Update Dashboard with failure status
+              ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text == \"$BASE_NAME\") | .id // empty" | head -n 1)
+              if [ -n "$ITEM_ID" ]; then
+                gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{text:$v}}){projectV2Item{id}}}' \
+                  -f p=$PROJECT_ID -f i=$ITEM_ID -f f=$SYNC_FIELD -f v="❌ Failed: $(date -u +'%H:%M UTC')"
+              fi
               echo "::endgroup::"
               continue
             fi
@@ -90,10 +96,15 @@ jobs:
               echo "✅ Up-to-date: $BASE_NAME"
             else
               echo "🚀 Syncing $BASE_NAME..."
-              docker pull -q "$image"
+              if ! docker pull -q "$image"; then
+                echo "::error::Failed to pull $image"
+                continue
+              fi
               docker tag "$image" "$TARGET_IMAGE"
-              docker push "$TARGET_IMAGE"
-              # Linking step is skipped as Portainer pull is already fixed via SSH login
+              if ! docker push "$TARGET_IMAGE"; then
+                echo "::error::Failed to push $TARGET_IMAGE"
+                continue
+              fi
             fi
             
             # Dashboard Sync
