@@ -76,14 +76,7 @@ jobs:
             UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -r '.manifest.digest // .[0].manifest.digest // "unknown"')
             
             # Safe Size Calculation
-            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -r '
-              if .manifest.layers then 
-                [.manifest.layers[].size] | add 
-              elif .[0].manifest.layers then 
-                [.[0].manifest.layers[].size] | add
-              else 
-                0 
-              end' 2>/dev/null || echo "0")
+            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -r '[.. | .size? | select(type == "number")] | add // 0' 2>/dev/null || echo "0")
             
             IMAGE_SIZE="N/A"
             if [ "$SIZE_BYTES" -gt 0 ]; then
