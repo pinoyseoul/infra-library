@@ -1,44 +1,45 @@
-lscr.io/linuxserver/radarr:latest
-lscr.io/linuxserver/sonarr:latest
-lscr.io/linuxserver/bazarr:latest
-fallenbagel/jellyseerr:latest
-lscr.io/linuxserver/qbittorrent:latest
-lscr.io/linuxserver/prowlarr:latest
-ghcr.io/thephaseless/byparr:latest
-lscr.io/linuxserver/jellyfin:latest
-dbgate/dbgate:latest
-rclone/rclone:latest
-nicolargo/glances:latest-full
-python:3.11-slim
-ghcr.io/gitroomhq/postiz-app:latest
-postgres:15-alpine
-redis:alpine
-temporalio/auto-setup:1.26.2
-temporalio/ui:2.30.0
-elasticsearch:7.17.27
-postgres:16
-invoiceshelf/invoiceshelf:nightly
-kimai/kimai2:apache
-mariadb:10.8
-ghcr.io/plankanban/planka:latest
-postgres:15
-docuseal/docuseal:latest
-vaultwarden/server:latest
-alpine:latest
-cloudflare/cloudflared:latest
-containrrr/watchtower:latest
-deluan/navidrome:latest
-lscr.io/linuxserver/lidarr:latest
-jvmilazz0/kavita:latest
-ghcr.io/pennydreadful/bookshelf:softcover
-ghcr.io/advplyr/audiobookshelf:latest
-ghcr.io/suwayomi/tachidesk:latest
-viktorstrate/photoview:2
-ghcr.io/home-assistant/home-assistant:stable
-lscr.io/linuxserver/syncthing:latest
-ghcr.io/jmbannon/ytdl-sub:latest
-ghcr.io/azuracast/azuracast:latest
-qmcgaw/gluetun:latest
-portainer/portainer-ee:latest
-portainer/agent:latest
-fe80grau/ytdlp2strm:latest
+lscr.io/linuxserver/radarr:latest | radarr
+lscr.io/linuxserver/sonarr:latest | sonarr
+lscr.io/linuxserver/bazarr:latest | bazarr
+fallenbagel/jellyseerr:latest | jellyseerr
+lscr.io/linuxserver/qbittorrent:latest | qbittorrent
+lscr.io/linuxserver/prowlarr:latest | prowlarr
+ghcr.io/thephaseless/byparr:latest | byparr
+lscr.io/linuxserver/jellyfin:latest | jellyfin
+dbgate/dbgate:latest | dbgate
+rclone/rclone:latest | rclone
+nicolargo/glances:latest-full | glances
+python:3.11-slim | python
+ghcr.io/gitroomhq/postiz-app:latest | postiz-app
+postgres:15-alpine | postgres-15-alpine
+redis:alpine | redis-alpine
+temporalio/auto-setup:1.26.2 | auto-setup
+temporalio/ui:2.30.0 | ui
+elasticsearch:7.17.27 | elasticsearch
+postgres:16 | postgres-16
+invoiceshelf/invoiceshelf:nightly | invoiceshelf
+kimai/kimai2:apache | kimai2
+mariadb:10.8 | mariadb-10.8
+ghcr.io/plankanban/planka:latest | planka
+postgres:15 | postgres-15
+docuseal/docuseal:latest | docuseal
+vaultwarden/server:latest | vaultwarden
+alpine:latest | alpine
+cloudflare/cloudflared:latest | cloudflared
+containrrr/watchtower:latest | watchtower
+deluan/navidrome:latest | navidrome
+lscr.io/linuxserver/lidarr:latest | lidarr
+jvmilazz0/kavita:latest | kavita
+ghcr.io/pennydreadful/bookshelf:softcover | bookshelf
+ghcr.io/advplyr/audiobookshelf:latest | audiobookshelf
+ghcr.io/suwayomi/tachidesk:latest | tachidesk
+viktorstrate/photoview:2 | photoview
+ghcr.io/home-assistant/home-assistant:stable | home-assistant
+lscr.io/linuxserver/syncthing:latest | syncthing
+ghcr.io/jmbannon/ytdl-sub:latest | ytdl-sub
+ghcr.io/azuracast/azuracast:latest | azuracast
+portainer/portainer-ee:latest | portainer-ee
+portainer/agent:latest | agent
+portainer/agent:latest | edge-agent
+fe80grau/ytdlp2strm:latest | ytdlp2strm
+qmcgaw/gluetun:latest | gluetun
