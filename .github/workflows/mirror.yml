@@ -68,18 +68,24 @@ jobs:
             echo "Inspecting metadata..."
             UPSTREAM_JSON=$(docker buildx imagetools inspect "$image" --format "{{json .}}" 2>/dev/null || echo "error")
             
-            if [ "$UPSTREAM_JSON" = "error" ]; then
-              echo "::error::Failed to inspect $image"
-              echo "::endgroup::"
-              continue
+            IMAGE_SIZE="N/A"
+            UPSTREAM_DIGEST="unknown"
+
+            if [ "$UPSTREAM_JSON" != "error" ]; then
+              # Robust Digest & Size Calculation (Handles multi-arch manifests)
+              UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
+              
+              # Extract size safely
+              if echo "$UPSTREAM_JSON" | jq -s . >/dev/null 2>&1; then
+                SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0')
+                [ "$SIZE_BYTES" -gt 0 ] && IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+              else
+                echo "⚠️ Invalid JSON metadata for $image. Size skipped."
+              fi
+            else
+              echo "⚠️ Could not inspect metadata for $image. Continuing with pull-only mode."
             fi
 
-            UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
-            
-            # Robust Size Calculation (Slurp mode for multi-arch)
-            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' 2>/dev/null || echo "0")
-            IMAGE_SIZE="N/A"
-            [ "$SIZE_BYTES" -gt 0 ] && IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
 
             LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
             LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // empty')
