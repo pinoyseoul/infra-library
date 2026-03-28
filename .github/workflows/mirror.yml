@@ -83,7 +83,7 @@ jobs:
               continue
             fi
 
-            UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r '[.[] | .manifest.digest // .manifest.digest] | first // "unknown"' 2>/dev/null || echo "unknown")
+            UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
             
             # Robust size calculation
             SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' 2>/dev/null || echo "0")
@@ -106,8 +106,8 @@ jobs:
               fi
             fi
             
-            # Dashboard Sync (Matching by the unique CLEAN_PATH)
-            ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text == \"$CLEAN_PATH\") | .id // empty" | head -n 1)
+            # Dashboard Sync
+            ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text? == \"$CLEAN_PATH\") | .id // empty" | head -n 1)
 
             if [ -z "$ITEM_ID" ]; then
               echo "✨ Auto-Discover: Adding $CLEAN_PATH..."
