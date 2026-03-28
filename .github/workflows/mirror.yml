@@ -34,7 +34,6 @@ jobs:
           SYNC_FIELD: "PVTF_lADOA4eG_84BS-upzhAXSzs"
           SHA_FIELD: "PVTF_lADOA4eG_84BS-upzhAYC0I"
           SIZE_FIELD: "PVTF_lADOA4eG_84BS-upzhAYC0M"
-          CHAT_WEBHOOK: "https://chat.googleapis.com/v1/spaces/AAQAkDpGC70/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=J4PBk8Bp5ZGNaECMbR7bcaC8yxSUbWWFJcNEbOtCkgo"
         run: |
           NOW=$(date -u +"%Y-%m-%d %H:%M UTC")
           
@@ -70,32 +69,41 @@ jobs:
             
             if [ "$UPSTREAM_JSON" = "error" ]; then
               echo "::error::Failed to inspect $image"
-              curl -X POST -H "Content-Type: application/json" -d "{\"text\":\"Mirror Failed: Could not inspect upstream image $image\"}" $CHAT_WEBHOOK
               echo "::endgroup::"
               continue
             fi
 
-            UPSTREAM_DIGEST=$(echo $UPSTREAM_JSON | jq -r '.manifest.digest // .[0].manifest.digest')
+            UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -r '.manifest.digest // .[0].manifest.digest // "unknown"')
             
-            # Robust size calculation (Handles both single and multi-arch)
-            IMAGE_SIZE=$(docker buildx imagetools inspect "$image" --format "{{range .Manifest.Layers}}{{.Size}}{{println}}{{end}}" 2>/dev/null | awk "{s+=\$1} END {print int(s/1048576) \" MB\"}")
-            [ "$IMAGE_SIZE" = "0 MB" ] && IMAGE_SIZE="N/A"
+            # Safe Size Calculation
+            SIZE_BYTES=$(echo "$UPSTREAM_JSON" | jq -r '
+              if .manifest.layers then 
+                [.manifest.layers[].size] | add 
+              elif .[0].manifest.layers then 
+                [.[0].manifest.layers[].size] | add
+              else 
+                0 
+              end' 2>/dev/null || echo "0")
             
+            IMAGE_SIZE="N/A"
+            if [ "$SIZE_BYTES" -gt 0 ]; then
+                IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+            fi
+
             LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
-            LOCAL_DIGEST=$(echo $LOCAL_DATA | jq -r '.digest // empty')
+            LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // empty')
             
-            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "" ]; then
+            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
               echo "✅ Up-to-date: $BASE_NAME"
             else
               echo "🚀 Syncing $BASE_NAME..."
               docker pull -q "$image"
               docker tag "$image" "$TARGET_IMAGE"
               docker push "$TARGET_IMAGE"
-              # Ensure Public Visibility via Link (Public Repo)
-              gh api --method PUT "orgs/pinoyseoul/packages/container/$BASE_NAME/repository" -F repository_id=1193855777 --silent || true
+              # Linking step is skipped as Portainer pull is already fixed via SSH login
             fi
             
-            # Dashboard Discovery & Sync
+            # Dashboard Sync
             ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text == \"$BASE_NAME\") | .id // empty" | head -n 1)
 
             if [ -z "$ITEM_ID" ]; then
@@ -108,7 +116,7 @@ jobs:
                 }' -f project=$PROJECT_ID -f title="$BASE_NAME" --jq '.data.addProjectV2DraftIssue.projectItem.id')
             fi
 
-            # Update Dashboard values
+            # Update Fields
             SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
             gh api graphql -f query='
               mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!,$f3:ID!,$v3:String!) {
@@ -121,12 +129,12 @@ jobs:
             echo "::endgroup::"
           done < mirror-list.txt
 
-          # 3. Cleanup Orphans
+          # Cleanup
           echo "Performing board cleanup..."
-          MIRROR_NAMES=$(grep -v '^#' mirror-list.txt | awk -F"/" '{print $NF}' | cut -d":" -f1)
-          echo "$BOARD_ITEMS" | jq -c '.[]' | while read item; do
-            ITEM_NAME=$(echo "$item" | jq -r '.fieldValues.nodes[].text' | grep -v '^$' | head -n 1)
-            ITEM_ID=$(echo "$item" | jq -r '.id')
+          MIRROR_NAMES=$(grep -v "^#" mirror-list.txt | awk -F"/" "{print \$NF}" | cut -d":" -f1)
+          echo "$BOARD_ITEMS" | jq -c ".[]" | while read item; do
+            ITEM_NAME=$(echo "$item" | jq -r ".fieldValues.nodes[].text" | grep -v "^$" | head -n 1)
+            ITEM_ID=$(echo "$item" | jq -r ".id")
             if ! echo "$MIRROR_NAMES" | grep -qx "$ITEM_NAME"; then
                if [ "$ITEM_NAME" != "Core Mirror Engine" ] && [ -n "$ITEM_NAME" ]; then
                  echo "🗑️ Archiving orphaned item: $ITEM_NAME"
