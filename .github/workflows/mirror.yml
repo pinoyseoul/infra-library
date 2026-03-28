@@ -34,10 +34,11 @@ jobs:
           SYNC_FIELD: "PVTF_lADOA4eG_84BS-upzhAXSzs"
           SHA_FIELD: "PVTF_lADOA4eG_84BS-upzhAYC0I"
           SIZE_FIELD: "PVTF_lADOA4eG_84BS-upzhAYC0M"
+          CHAT_WEBHOOK: "https://chat.googleapis.com/v1/spaces/AAQAkDpGC70/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=J4PBk8Bp5ZGNaECMbR7bcaC8yxSUbWWFJcNEbOtCkgo"
         run: |
           NOW=$(date -u +"%Y-%m-%d %H:%M UTC")
           
-          # Fetch board items
+          # 1. Fetch current board items
           echo "Fetching board items..."
           BOARD_ITEMS=$(gh api graphql -f query='
             query($project: ID!) {
@@ -55,63 +56,85 @@ jobs:
               }
             }' -f project=$PROJECT_ID --jq '.data.node.items.nodes')
 
+          # 2. Main Mirror Loop
           while IFS= read -r image || [ -n "$image" ]; do
             [[ -z "$image" || "$image" =~ ^# ]] && continue
             
-            echo "::group::Processing $image"
-            IMAGE_NAME=$(echo $image | awk -F"/" '{print $NF}')
-            BASE_NAME=$(echo $IMAGE_NAME | cut -d":" -f1)
-            TARGET_IMAGE="ghcr.io/pinoyseoul/$IMAGE_NAME"
-            
-            # Simple Metadata check
-            echo "Inspecting $image..."
-            UPSTREAM_JSON=$(docker buildx imagetools inspect "$image" --format "{{json .}}" 2>/dev/null || echo "error")
-            UPSTREAM_DIGEST="unknown"
-            IMAGE_SIZE="N/A"
-
-            if [ "$UPSTREAM_JSON" != "error" ]; then
-                UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
-                # VERY SIMPLE SIZE CHECK
-                IMAGE_SIZE=$(echo "$UPSTREAM_JSON" | grep -oP '"size":\s*\d+' | head -n 1 | awk -F': ' '{print int($2/1048576) " MB"}' || echo "N/A")
-            fi
-
-            LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
-            LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // empty')
-            
-            if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
-              echo "✅ Match: $BASE_NAME"
-            else
-              echo "🚀 Syncing $BASE_NAME..."
-              if docker pull -q "$image"; then
-                docker tag "$image" "$TARGET_IMAGE"
-                docker push "$TARGET_IMAGE"
+            # WRAP LOOP IN SUBSHELL TO PREVENT CRASHES
+            (
+              set -e # Fail inside subshell only
+              
+              echo "::group::Processing $image"
+              IMAGE_NAME=$(echo $image | awk -F"/" '{print $NF}')
+              BASE_NAME=$(echo $IMAGE_NAME | cut -d":" -f1)
+              TARGET_IMAGE="ghcr.io/pinoyseoul/$IMAGE_NAME"
+              
+              # FALLBACK INITIALIZATION
+              UPSTREAM_DIGEST="unknown"
+              IMAGE_SIZE="N/A"
+              
+              echo "Inspecting metadata..."
+              # Use file to avoid shell expansion issues
+              docker buildx imagetools inspect "$image" --format "{{json .}}" > metadata.raw 2>/dev/null || echo "error" > metadata.raw
+              
+              if [ "$(cat metadata.raw)" != "error" ]; then
+                # Safe Digest Extract
+                UPSTREAM_DIGEST=$(jq -s -r 'if type == "array" then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' metadata.raw 2>/dev/null || echo "unknown")
+                # Safe Size Extract (Recursive sum of all .size numbers)
+                SIZE_BYTES=$(jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' metadata.raw 2>/dev/null || echo "0")
+                if [ "$SIZE_BYTES" != "0" ]; then
+                  IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+                fi
               fi
-            fi
+              rm -f metadata.raw
+
+              LOCAL_DIGEST="none"
+              # Get local library digest safely
+              docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" > local.raw 2>/dev/null || echo "none" > local.raw
+              if [ "$(cat local.raw)" != "none" ]; then
+                 LOCAL_DIGEST=$(jq -r '.digest // empty' local.raw 2>/dev/null || echo "none")
+              fi
+              rm -f local.raw
+              
+              if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
+                echo "✅ Match: $BASE_NAME"
+              else
+                echo "🚀 Syncing $BASE_NAME..."
+                if docker pull -q "$image"; then
+                  docker tag "$image" "$TARGET_IMAGE"
+                  docker push "$TARGET_IMAGE"
+                else
+                  echo "::error::Failed to pull $image"
+                  exit 0 # Skip to next in subshell
+                fi
+              fi
+              
+              # Dashboard Sync
+              ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text? == \"$BASE_NAME\") | .id // empty" | head -n 1)
+
+              if [ -z "$ITEM_ID" ]; then
+                echo "✨ Auto-Discover: Adding $BASE_NAME to board..."
+                ITEM_ID=$(gh api graphql -f query='
+                  mutation($project: ID!, $title: String!) {
+                    addProjectV2DraftIssue(input: {projectId: $project, title: $title}) {
+                      projectItem { id }
+                    }
+                  }' -f project=$PROJECT_ID -f title="$BASE_NAME" --jq '.data.addProjectV2DraftIssue.projectItem.id')
+              fi
+
+              # Update Dashboard Values
+              SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
+              gh api graphql -f query='
+                mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!,$f3:ID!,$v3:String!) {
+                  m1: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f1,value:{text:$v1}}){projectV2Item{id}}
+                  m2: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f2,value:{text:$v2}}){projectV2Item{id}}
+                  m3: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f3,value:{text:$v3}}){projectV2Item{id}}
+                }' -f p=$PROJECT_ID -f i=$ITEM_ID -f f1=$SYNC_FIELD -f v1="$NOW" -f f2=$SHA_FIELD -f v2="$SHORT_SHA" -f f3=$SIZE_FIELD -f v3="$IMAGE_SIZE"
+
+              docker rmi "$image" "$TARGET_IMAGE" 2>/dev/null || true
+              echo "::endgroup::"
+            ) || echo "::warning::Non-fatal failure in processing. Moving to next image."
             
-            # Dashboard Sync
-            ITEM_ID=$(echo "$BOARD_ITEMS" | jq -r ".[] | select(.fieldValues.nodes[].text? == \"$BASE_NAME\") | .id // empty" | head -n 1)
-
-            if [ -z "$ITEM_ID" ]; then
-              echo "✨ Auto-Discover: Adding $BASE_NAME..."
-              ITEM_ID=$(gh api graphql -f query='
-                mutation($project: ID!, $title: String!) {
-                  addProjectV2DraftIssue(input: {projectId: $project, title: $title}) {
-                    projectItem { id }
-                  }
-                }' -f project=$PROJECT_ID -f title="$BASE_NAME" --jq '.data.addProjectV2DraftIssue.projectItem.id')
-            fi
-
-            # Update Dashboard
-            SHORT_SHA=$(echo $UPSTREAM_DIGEST | cut -c1-12)
-            gh api graphql -f query='
-              mutation($p:ID!,$i:ID!,$f1:ID!,$v1:String!,$f2:ID!,$v2:String!,$f3:ID!,$v3:String!) {
-                m1: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f1,value:{text:$v1}}){projectV2Item{id}}
-                m2: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f2,value:{text:$v2}}){projectV2Item{id}}
-                m3: updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f3,value:{text:$v3}}){projectV2Item{id}}
-              }' -f p=$PROJECT_ID -f i=$ITEM_ID -f f1=$SYNC_FIELD -f v1="$NOW" -f f2=$SHA_FIELD -f v2="$SHORT_SHA" -f f3=$SIZE_FIELD -f v3="$IMAGE_SIZE"
-
-            docker rmi "$image" "$TARGET_IMAGE" 2>/dev/null || true
-            echo "::endgroup::"
           done < mirror-list.txt
 
           # Cleanup
