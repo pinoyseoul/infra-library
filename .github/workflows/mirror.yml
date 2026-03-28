@@ -102,6 +102,7 @@ jobs:
                 docker tag "$source" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
               else
+
                 echo "::error::Failed to pull $source"
                 echo "::endgroup::"
                 continue
