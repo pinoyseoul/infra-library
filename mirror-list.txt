@@ -43,4 +43,4 @@ portainer/agent:latest | agent
 portainer/agent:latest | edge-agent
 fe80grau/ytdlp2strm:latest | ytdlp2strm
 qmcgaw/gluetun:latest | gluetun
-dockurr/casa:latest | casaos
+dockurr/casa:latest | casa
