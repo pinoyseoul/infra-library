@@ -1,3 +1,7 @@
+# 🏛️ PinoySeoul Infrastructure Mirror List
+# Format: upstream:tag | local_name
+
+# Media Management
 lscr.io/linuxserver/radarr:latest | radarr
 lscr.io/linuxserver/sonarr:latest | sonarr
 lscr.io/linuxserver/bazarr:latest | bazarr
@@ -6,41 +10,50 @@ lscr.io/linuxserver/qbittorrent:latest | qbittorrent
 lscr.io/linuxserver/prowlarr:latest | prowlarr
 ghcr.io/thephaseless/byparr:latest | byparr
 lscr.io/linuxserver/jellyfin:latest | jellyfin
-dbgate/dbgate:latest | dbgate
-rclone/rclone:latest | rclone
-nicolargo/glances:latest-full | glances
-python:3.11-slim | python
+
+# Technical & Admin
 ghcr.io/gitroomhq/postiz-app:latest | postiz-app
-postgres:15-alpine | postgres-15-alpine
-redis:alpine | redis-alpine
+plankanban/planka:latest | planka
+docuseal/docuseal:latest | docuseal
+vaultwarden/server:latest | vaultwarden
+invoiceshelf/invoiceshelf:latest | invoiceshelf
+kimai/kimai2:apache | kimai2
+
+# Databases
+postgres:15-alpine | postgres
+postgres:16 | postgres
+mariadb:10.8 | mariadb
+redis:alpine | redis
+elasticsearch:7.17.27 | elasticsearch
+
+# Orchestration
 temporalio/auto-setup:1.26.2 | auto-setup
 temporalio/ui:2.30.0 | ui
-elasticsearch:7.17.27 | elasticsearch
-postgres:16 | postgres-16
-invoiceshelf/invoiceshelf:nightly | invoiceshelf
-kimai/kimai2:apache | kimai2
-mariadb:10.8 | mariadb-10.8
-ghcr.io/plankanban/planka:latest | planka
-postgres:15 | postgres-15
-docuseal/docuseal:latest | docuseal
-vaultwarden/server:latest | server
-alpine:latest | alpine
+
+# System Utilities
 cloudflare/cloudflared:latest | cloudflared
 containrrr/watchtower:latest | watchtower
+nicolargo/glances:latest-full | glances
+python:3.11-slim | python
+alpine:latest | alpine
+qmcgaw/gluetun:latest | gluetun
+fe80grau/ytdlp2strm:latest | ytdlp2strm
+dockurr/casa:latest | casaos
+rclone/rclone:latest | rclone
+
+# Specialized
 deluan/navidrome:latest | navidrome
 lscr.io/linuxserver/lidarr:latest | lidarr
 jvmilazz0/kavita:latest | kavita
-ghcr.io/pennydreadful/bookshelf:softcover | bookshelf
+ghcr.io/pennydreadful/bookshelf:latest | bookshelf
 ghcr.io/advplyr/audiobookshelf:latest | audiobookshelf
 ghcr.io/suwayomi/tachidesk:latest | tachidesk
-viktorstrate/photoview:2 | photoview
-ghcr.io/home-assistant/home-assistant:stable | home-assistant
+viktorstrate/photoview:latest | photoview
+ghcr.io/home-assistant/home-assistant:latest | home-assistant
 lscr.io/linuxserver/syncthing:latest | syncthing
 ghcr.io/jmbannon/ytdl-sub:latest | ytdl-sub
-ghcr.io/azuracast/azuracast:latest | azuracast
+
+# Management
 portainer/portainer-ee:latest | portainer-ee
 portainer/agent:latest | agent
 portainer/agent:latest | edge-agent
-fe80grau/ytdlp2strm:latest | ytdlp2strm
-qmcgaw/gluetun:latest | gluetun
-dockurr/casa:latest | casaos
