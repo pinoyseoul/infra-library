@@ -151,7 +151,7 @@ jobs:
             
           done < mirror-list.txt
 
-            # 6. Cleanup
+          # 6. Cleanup
           echo "Performing board cleanup..."
           MIRROR_NAMES=$(while read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
@@ -160,6 +160,7 @@ jobs:
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" "{print \$NF}" | cut -d":" -f1)
             fi
+            # Use exact identity logic as the main loop
             if [[ "$source" == *":"* ]]; then
                 tag=$(echo $source | awk -F":" '{print $NF}')
                 echo "$target_name:$tag"
@@ -173,8 +174,9 @@ jobs:
             ITEM_ID=$(echo "$item" | jq -r ".id")
             if ! echo "$MIRROR_NAMES" | grep -qx "$ITEM_NAME"; then
                if [ "$ITEM_NAME" != "Core Mirror Engine" ] && [ -n "$ITEM_NAME" ]; then
-                 echo "🗑️ Archiving orphaned item: $ITEM_NAME"
+                 echo "Archiving orphaned item: $ITEM_NAME"
                  gh api graphql -f query='mutation($p:ID!,$i:ID!){archiveProjectV2Item(input:{projectId:$p,itemId:$i}){item{id}}}' -f p=$PROJECT_ID -f i=$ITEM_ID --silent || true
                fi
             fi
           done
+
