@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - 'mirror-list.txt'
+      - 'name-mapping.json'
   workflow_dispatch:
 
 jobs:
@@ -75,13 +76,18 @@ jobs:
 
             echo "::group::Processing $FULL_ID ($source)"
             
-            # 3. Metadata Inspection (File-Based)
+            # 3. Metadata Inspection
             UPSTREAM_DIGEST="unknown"
             IMAGE_SIZE="N/A"
             echo "Inspecting metadata..."
             if docker buildx imagetools inspect "$source" --format "{{json .}}" > metadata.raw 2>/dev/null; then
                 if jq -s . metadata.raw >/dev/null 2>&1; then
                     UPSTREAM_DIGEST=$(jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' metadata.raw 2>/dev/null || echo "unknown")
+                    # Recursive sum of all .size fields
+                    SIZE_BYTES=$(jq -s '[.. | .size? | select(type == "number")] | add // 0' metadata.raw 2>/dev/null || echo "0")
+                    if [ "$SIZE_BYTES" != "0" ]; then
+                        IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+                    fi
                 fi
             fi
             rm -f metadata.raw
@@ -92,7 +98,7 @@ jobs:
             fi
             rm -f local.raw
             
-            # 4. Mirror Cycle
+            # 4. Mirror Logic
             if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
               echo "✅ Match: $FULL_ID"
             else
@@ -100,11 +106,6 @@ jobs:
               if docker pull -q "$source"; then
                 docker tag "$source" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
-                # Accurate size after pull
-                SIZE_BYTES=$(docker image inspect "$source" --format '{{.Size}}' 2>/dev/null || echo "0")
-                if [ "$SIZE_BYTES" != "0" ]; then
-                    IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
-                fi
               else
                 echo "::error::Failed to pull $source"
                 echo "::endgroup::"
@@ -112,7 +113,7 @@ jobs:
               fi
             fi
             
-            # 5. Dashboard Update
+            # 5. Dashboard Sync
             ITEM_DATA=$(echo "$BOARD_ITEMS" | jq -c ".[] | select(.fieldValues.nodes[].text? == \"$FULL_ID\")" | head -n 1)
             ITEM_ID=$(echo "$ITEM_DATA" | jq -r ".id // empty")
             IS_ARCHIVED=$(echo "$ITEM_DATA" | jq -r ".isArchived // false")
