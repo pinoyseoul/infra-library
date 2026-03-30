@@ -6,7 +6,6 @@ on:
   push:
     paths:
       - 'mirror-list.txt'
-      - 'name-mapping.json'
   workflow_dispatch:
 
 jobs:
@@ -61,29 +60,41 @@ jobs:
           while IFS= read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             
-            # 1. Parse source | target
+            # 1. Identify Source and Target Name
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
+            
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" '{print $NF}' | cut -d':' -f1)
             fi
 
-            # 2. Extract Tag
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            [[ "$tag" == "$source" ]] && tag="latest"
-            FULL_ID="$target_name:$tag"
-            TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
+            # 2. Extract Tag Exactly
+            # Handles image:tag or image@sha256:digest
+            if [[ "$source" == *"@"* ]]; then
+               tag=$(echo $source | cut -d'@' -f2)
+               TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name@$tag"
+               FULL_ID="$target_name@${tag:0:12}..."
+            elif [[ "$source" == *":"* ]]; then
+               tag=$(echo $source | awk -F":" '{print $NF}')
+               TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
+               FULL_ID="$target_name:$tag"
+            else
+               tag="latest"
+               TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:latest"
+               FULL_ID="$target_name:latest"
+            fi
 
             echo "::group::Processing $FULL_ID ($source)"
             
-            # 3. Metadata Inspection
+            # 3. Metadata Inspection (Bulletproof File-Based)
             UPSTREAM_DIGEST="unknown"
             IMAGE_SIZE="N/A"
+            
             echo "Inspecting metadata..."
             if docker buildx imagetools inspect "$source" --format "{{json .}}" > metadata.raw 2>/dev/null; then
                 if jq -s . metadata.raw >/dev/null 2>&1; then
                     UPSTREAM_DIGEST=$(jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' metadata.raw 2>/dev/null || echo "unknown")
-                    # Sum all size fields found in the multi-arch manifest using robust grep
+                    # Sum all size fields using robust grep
                     SIZE_BYTES=$(grep -oP '"size":\s*\d+' metadata.raw | awk -F': ' '{s+=$2} END {print s // 0}' 2>/dev/null || echo "0")
                     if [ "$SIZE_BYTES" != "0" ]; then
                         IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
@@ -98,7 +109,7 @@ jobs:
             fi
             rm -f local.raw
             
-            # 4. Mirror Logic
+            # 4. Mirror Logic (No automated latest)
             if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
               echo "✅ Match: $FULL_ID"
             else
@@ -113,7 +124,7 @@ jobs:
               fi
             fi
             
-            # 5. Dashboard Sync
+            # 5. Dashboard Sync (With Auto-Unarchive)
             ITEM_DATA=$(echo "$BOARD_ITEMS" | jq -c ".[] | select(.fieldValues.nodes[].text? == \"$FULL_ID\")" | head -n 1)
             ITEM_ID=$(echo "$ITEM_DATA" | jq -r ".id // empty")
             IS_ARCHIVED=$(echo "$ITEM_DATA" | jq -r ".isArchived // false")
@@ -152,12 +163,17 @@ jobs:
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            [[ "$tag" == "$source" ]] && tag="latest"
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" "{print \$NF}" | cut -d":" -f1)
             fi
-            echo "$target_name:$tag"
+            # Mirror the ID logic from above
+            if [[ "$source" == *"@"* ]]; then
+               tag=$(echo $source | cut -d'@' -f2); echo "$target_name@${tag:0:12}..."
+            elif [[ "$source" == *":"* ]]; then
+               tag=$(echo $source | awk -F":" '{print $NF}'); echo "$target_name:$tag"
+            else
+               echo "$target_name:latest"
+            fi
           done < mirror-list.txt)
           
           echo "$BOARD_ITEMS" | jq -c ".[]" | while read item; do
@@ -165,7 +181,7 @@ jobs:
             ITEM_ID=$(echo "$item" | jq -r ".id")
             if ! echo "$MIRROR_NAMES" | grep -qx "$ITEM_NAME"; then
                if [ "$ITEM_NAME" != "Core Mirror Engine" ] && [ -n "$ITEM_NAME" ]; then
-                 echo "🗑️ Archiving orphaned item: $ITEM_NAME"
+                 echo "Archiving orphaned item: $ITEM_NAME"
                  gh api graphql -f query='mutation($p:ID!,$i:ID!){archiveProjectV2Item(input:{projectId:$p,itemId:$i}){item{id}}}' -f p=$PROJECT_ID -f i=$ITEM_ID --silent || true
                fi
             fi
