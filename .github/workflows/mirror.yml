@@ -69,12 +69,14 @@ jobs:
             fi
 
             # 2. Extract Tag Exactly
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            # If no colon found, default to latest
-            [[ "$tag" == "$source" ]] && tag="latest"
-            
-            FULL_ID="$target_name:$tag"
-            TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
+            if [[ "$source" == *":"* ]]; then
+                tag=$(echo $source | awk -F":" '{print $NF}')
+                FULL_ID="$target_name:$tag"
+                TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
+            else
+                FULL_ID="$target_name"
+                TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name"
+            fi
 
             echo "::group::Processing $FULL_ID ($source)"
             
@@ -149,18 +151,21 @@ jobs:
             
           done < mirror-list.txt
 
-          # 6. Cleanup
+            # 6. Cleanup
           echo "Performing board cleanup..."
           MIRROR_NAMES=$(while read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            [[ "$tag" == "$source" ]] && tag="latest"
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" "{print \$NF}" | cut -d":" -f1)
             fi
-            echo "$target_name:$tag"
+            if [[ "$source" == *":"* ]]; then
+                tag=$(echo $source | awk -F":" '{print $NF}')
+                echo "$target_name:$tag"
+            else
+                echo "$target_name"
+            fi
           done < mirror-list.txt)
           
           echo "$BOARD_ITEMS" | jq -c ".[]" | while read item; do
