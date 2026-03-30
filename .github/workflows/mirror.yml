@@ -60,40 +60,39 @@ jobs:
           while IFS= read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             
-            # 1. Parse source | target mapping
+            # 1. Parse source | target
             source=$(echo "$line" | cut -d'|' -f1 | xargs)
             target_name=$(echo "$line" | cut -d'|' -f2 | xargs)
-            
-            # 2. Extract Tag
-            tag=$(echo $source | awk -F":" '{print $NF}')
-            [[ "$tag" == "$source" ]] && tag="latest"
-
             if [ -z "$target_name" ]; then
                 target_name=$(echo $source | awk -F"/" '{print $NF}' | cut -d':' -f1)
             fi
 
-            # 3. Final Identity (Name:Tag) for Dashboard
+            # 2. Extract Tag
+            tag=$(echo $source | awk -F":" '{print $NF}')
+            [[ "$tag" == "$source" ]] && tag="latest"
             FULL_ID="$target_name:$tag"
             TARGET_IMAGE="ghcr.io/pinoyseoul/$target_name:$tag"
 
             echo "::group::Processing $FULL_ID ($source)"
             
-            # Metadata check
-            UPSTREAM_JSON=$(docker buildx imagetools inspect "$source" --format "{{json .}}" 2>/dev/null || echo "error")
+            # 3. Metadata Inspection (File-Based)
             UPSTREAM_DIGEST="unknown"
             IMAGE_SIZE="N/A"
-
-            if [ "$UPSTREAM_JSON" != "error" ]; then
-                UPSTREAM_DIGEST=$(echo "$UPSTREAM_JSON" | jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' 2>/dev/null || echo "unknown")
-                SIZE_BYTES=$(jq -s '[.[] | .. | .size? | select(type == "number")] | add // 0' <(echo "$UPSTREAM_JSON") 2>/dev/null || echo "0")
-                if [ "$SIZE_BYTES" != "0" ] && [ "$SIZE_BYTES" != "" ]; then
-                    IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+            echo "Inspecting metadata..."
+            if docker buildx imagetools inspect "$source" --format "{{json .}}" > metadata.raw 2>/dev/null; then
+                if jq -s . metadata.raw >/dev/null 2>&1; then
+                    UPSTREAM_DIGEST=$(jq -s -r 'if type == "array" and length > 0 then .[0].manifest.digest // .[0].digest else .manifest.digest // .digest end' metadata.raw 2>/dev/null || echo "unknown")
                 fi
             fi
+            rm -f metadata.raw
 
-            LOCAL_DATA=$(docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" 2>/dev/null || echo "none")
-            LOCAL_DIGEST=$(echo "$LOCAL_DATA" | jq -r '.digest // "none"' 2>/dev/null || echo "none")
+            LOCAL_DIGEST="none"
+            if docker buildx imagetools inspect "$TARGET_IMAGE" --format "{{json .Manifest}}" > local.raw 2>/dev/null; then
+                 LOCAL_DIGEST=$(jq -r '.digest // "none"' local.raw 2>/dev/null || echo "none")
+            fi
+            rm -f local.raw
             
+            # 4. Mirror Cycle
             if [ "$UPSTREAM_DIGEST" = "$LOCAL_DIGEST" ] && [ "$UPSTREAM_DIGEST" != "unknown" ]; then
               echo "✅ Match: $FULL_ID"
             else
@@ -101,15 +100,19 @@ jobs:
               if docker pull -q "$source"; then
                 docker tag "$source" "$TARGET_IMAGE"
                 docker push "$TARGET_IMAGE"
+                # Accurate size after pull
+                SIZE_BYTES=$(docker image inspect "$source" --format '{{.Size}}' 2>/dev/null || echo "0")
+                if [ "$SIZE_BYTES" != "0" ]; then
+                    IMAGE_SIZE="$(awk "BEGIN {print int($SIZE_BYTES/1048576)}") MB"
+                fi
               else
-
                 echo "::error::Failed to pull $source"
                 echo "::endgroup::"
                 continue
               fi
             fi
             
-            # Dashboard Sync
+            # 5. Dashboard Update
             ITEM_DATA=$(echo "$BOARD_ITEMS" | jq -c ".[] | select(.fieldValues.nodes[].text? == \"$FULL_ID\")" | head -n 1)
             ITEM_ID=$(echo "$ITEM_DATA" | jq -r ".id // empty")
             IS_ARCHIVED=$(echo "$ITEM_DATA" | jq -r ".isArchived // false")
@@ -142,7 +145,7 @@ jobs:
             
           done < mirror-list.txt
 
-          # Cleanup
+          # 6. Cleanup
           echo "Performing board cleanup..."
           MIRROR_NAMES=$(while read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" =~ ^# ]] && continue
