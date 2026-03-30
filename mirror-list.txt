@@ -33,7 +33,7 @@ temporalio/ui:2.30.0 | ui
 
 # System Utilities
 cloudflare/cloudflared:latest | cloudflared
-containrrr/watchtower:latest | watchtower
+containrrr/watchtower:latest | watchtower-latest
 containrrr/watchtower | watchtower
 nicolargo/glances:latest-full | glances
 python:3.11-slim | python
