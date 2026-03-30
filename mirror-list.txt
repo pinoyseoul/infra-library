@@ -20,12 +20,12 @@ invoiceshelf/invoiceshelf:nightly | invoiceshelf
 kimai/kimai2:apache | kimai2
 
 # Databases
-postgres:15-alpine | postgres-15-alpine
-postgres:16 | postgres-16
-mariadb:10.8 | mariadb-10.8
-redis:alpine | redis-alpine
+postgres:15-alpine | postgres
+postgres:16 | postgres
+mariadb:10.8 | mariadb
+redis:alpine | redis
 elasticsearch:7.17.27 | elasticsearch
-postgres:15 | postgres-15
+postgres:15 | postgres
 
 # Orchestration
 temporalio/auto-setup:1.26.2 | auto-setup
@@ -33,7 +33,7 @@ temporalio/ui:2.30.0 | ui
 
 # System Utilities
 cloudflare/cloudflared:latest | cloudflared
-containrrr/watchtower:latest | watchtower-latest
+containrrr/watchtower:latest | watchtower
 containrrr/watchtower | watchtower
 nicolargo/glances:latest-full | glances
 python:3.11-slim | python
