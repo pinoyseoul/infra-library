@@ -1,4 +1,5 @@
 # 🏛️ PinoySeoul Infrastructure Mirror List
+# Strict Map: c5603e0 (Original Upstream Tags ONLY)
 # Format: upstream:tag | local_name
 
 # Media Management
@@ -33,12 +34,12 @@ temporalio/ui:2.30.0 | ui
 
 # System Utilities
 cloudflare/cloudflared:latest | cloudflared
-containrrr/watchtower:latest | watchtower-latest
 containrrr/watchtower | watchtower
+containrrr/watchtower:latest | watchtower-latest
 nicolargo/glances:latest-full | glances
 python:3.11-slim | python
 alpine:latest | alpine
-qmcgaw/gluetun:latest | gluetun
+qmcgaw/gluetun | gluetun
 fe80grau/ytdlp2strm:latest | ytdlp2strm
 dockurr/casa:latest | casaos
 rclone/rclone:latest | rclone
