@@ -13,18 +13,19 @@ lscr.io/linuxserver/jellyfin:latest | jellyfin
 
 # Technical & Admin
 ghcr.io/gitroomhq/postiz-app:latest | postiz-app
-plankanban/planka:latest | planka
+ghcr.io/plankanban/planka:latest | planka
 docuseal/docuseal:latest | docuseal
 vaultwarden/server:latest | vaultwarden
-invoiceshelf/invoiceshelf:latest | invoiceshelf
+invoiceshelf/invoiceshelf:nightly | invoiceshelf
 kimai/kimai2:apache | kimai2
 
 # Databases
-postgres:15-alpine | postgres
-postgres:16 | postgres
-mariadb:10.8 | mariadb
-redis:alpine | redis
+postgres:15-alpine | postgres-15-alpine
+postgres:16 | postgres-16
+mariadb:10.8 | mariadb-10.8
+redis:alpine | redis-alpine
 elasticsearch:7.17.27 | elasticsearch
+postgres:15 | postgres-15
 
 # Orchestration
 temporalio/auto-setup:1.26.2 | auto-setup
@@ -32,7 +33,8 @@ temporalio/ui:2.30.0 | ui
 
 # System Utilities
 cloudflare/cloudflared:latest | cloudflared
-containrrr/watchtower:latest | watchtower
+containrrr/watchtower:latest | watchtower-latest
+containrrr/watchtower | watchtower
 nicolargo/glances:latest-full | glances
 python:3.11-slim | python
 alpine:latest | alpine
@@ -40,16 +42,17 @@ qmcgaw/gluetun:latest | gluetun
 fe80grau/ytdlp2strm:latest | ytdlp2strm
 dockurr/casa:latest | casaos
 rclone/rclone:latest | rclone
+dbgate/dbgate | dbgate
 
 # Specialized
 deluan/navidrome:latest | navidrome
 lscr.io/linuxserver/lidarr:latest | lidarr
 jvmilazz0/kavita:latest | kavita
-ghcr.io/pennydreadful/bookshelf:latest | bookshelf
+ghcr.io/pennydreadful/bookshelf:softcover | bookshelf
 ghcr.io/advplyr/audiobookshelf:latest | audiobookshelf
 ghcr.io/suwayomi/tachidesk:latest | tachidesk
-viktorstrate/photoview:latest | photoview
-ghcr.io/home-assistant/home-assistant:latest | home-assistant
+viktorstrate/photoview:2 | photoview
+ghcr.io/home-assistant/home-assistant:stable | home-assistant
 lscr.io/linuxserver/syncthing:latest | syncthing
 ghcr.io/jmbannon/ytdl-sub:latest | ytdl-sub
 
@@ -57,3 +60,4 @@ ghcr.io/jmbannon/ytdl-sub:latest | ytdl-sub
 portainer/portainer-ee:latest | portainer-ee
 portainer/agent:latest | agent
 portainer/agent:latest | edge-agent
+ghcr.io/azuracast/azuracast:latest | azuracast
