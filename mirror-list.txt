@@ -21,7 +21,7 @@ invoiceshelf/invoiceshelf:nightly | invoiceshelf
 kimai/kimai2:apache | kimai2
 
 # Databases
-postgres:15-alpine | postgres
+postgres:17-alpine | postgres
 postgres:16 | postgres
 mariadb:10.8 | mariadb
 redis:alpine | redis
